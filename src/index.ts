@@ -16,6 +16,39 @@ const HOST_KEY = fs.readFileSync(HOST_KEY_PATH);
 
 let activeStream: ServerChannel | null = null;
 
+function attachLineInput(
+  stream: ServerChannel,
+  onLine: (line: string) => void,
+) {
+  let buffer = "";
+
+  stream.on("data", (data: Buffer) => {
+    for (const byte of data) {
+      if (byte === 13 || byte === 10) {
+        // Enter
+        stream.write("\r\n");
+        const line = buffer;
+        buffer = "";
+        if (line.length > 0) onLine(line);
+      } else if (byte === 127 || byte === 8) {
+        // Backspace/Delete
+        if (buffer.length > 0) {
+          buffer = buffer.slice(0, -1);
+          stream.write("\b \b");
+        }
+      } else if (byte === 3) {
+        // Ctrl+C
+        stream.end();
+      } else if (byte >= 32 && byte < 127) {
+        // Printable ASCII
+        buffer += String.fromCharCode(byte);
+        stream.write(Buffer.from([byte]));
+      }
+      // Other control bytes (arrow keys, etc.) are ignored for simplicity.
+    }
+  });
+}
+
 const server = new Server({ hostKeys: [HOST_KEY] }, (client) => {
   console.log("[+] Incoming connection...");
 
@@ -38,10 +71,8 @@ const server = new Server({ hostKeys: [HOST_KEY] }, (client) => {
 
         stream.write("Connected. Start typing to chat.\r\n> ");
 
-        stream.on("data", (data: Buffer) => {
-          const msg = data.toString().replace(/\r?\n/g, "");
-          if (msg.length === 0) return;
-          process.stdout.write(`\rPeer: ${msg}\nYou> `);
+        attachLineInput(stream, (line) => {
+          process.stdout.write(`\rPeer: ${line}\nYou> `);
         });
 
         stream.on("close", () => {
