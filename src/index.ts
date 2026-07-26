@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { Server, ServerChannel } from "ssh2";
 import * as fs from "fs";
 import * as readline from "readline";
@@ -40,7 +41,7 @@ async function queryOllama(prompt: string): Promise<string> {
     if (!tagsData.models || tagsData.models.length === 0)
       return "No models found in Ollama.";
 
-    const model = "gemma4:26b";
+    const model = process.env.OLLAMA_MODEL || tagsData.models[0].name;
 
     const response = await fetch("http://127.0.0.1:11434/api/generate", {
       method: "POST",

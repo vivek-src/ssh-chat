@@ -9,6 +9,7 @@
     "dev": "tsc && node dist/index.js"
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
     "ssh2": "^1.17.0"
   },
   "devDependencies": {
