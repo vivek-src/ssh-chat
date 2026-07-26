@@ -14,13 +14,23 @@ A minimal, peer-to-peer terminal chat application built over SSH using Node.js. 
 ## Example Session
 
 ```text
-Vivek> Welcome to ShellChat. What's up?
-Peer> Not much! Want to see something cool?
-Peer> /ollama What is a secure shell?
-[14:24] Gemma: thinking...
-[14:24] Gemma: SSH (Secure Shell) is a cryptographic network protocol for operating network services securely over an unsecured network. Typical applications include remote command-line login and remote command execution.
-Vivek> Whoa! That was generated locally?
-Peer> Yep!
+➜  ~ ssh -p 2222 PC02@10.11.12.10
+Connected to PC01. Start typing to chat.
+[13:48] PC01: Hey! Can you hear me?
+[13:49] You: Yep, loud and clear.
+[13:49] PC01: Nice. Testing the SSH chat.
+[13:49] You: Looks good. No noticeable latency.
+[13:49] PC01: This is running entirely over an SSH session.
+[13:49] You: That's pretty cool.
+[13:50] PC01: You can also ask Gemma running locally on my machine using the /ollama command.
+[13:51] You: Nice! Let's try it.
+[13:51] You: /ollama Explain what is SSH in one paragraph.
+[13:51] Gemma: thinking...
+[13:51] Gemma: Secure Shell (SSH) is a cryptographic network protocol that provides a secure way to access and manage a computer or server remotely over an unsecured network. It works by establishing an encrypted connection between a client and a server, ensuring that all transmitted data-including sensitive login credentials, commands, and file transfers-is protected from eavesdropping and man-in-the-middle attacks. Primarily used by system administrators to interact with remote machines via a command-line interface, SSH also facilitates secure file transfers (via SFTP) and can be used to create encrypted tunnels for other network traffic, making it a fundamental tool for modern network security and remote administration.
+[13:52] You: Nice, that's running locally?
+[13:52] PC01: Yes. The response comes from a local Gemma model served through Ollama.
+[13:53] You: Makes Sense.
+You:
 ```
 
 ## Features
