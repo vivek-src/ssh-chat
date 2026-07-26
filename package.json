@@ -1,7 +1,7 @@
 {
   "name": "ssh-p2p-chat",
   "version": "1.0.0",
-  "description": "Minimal SSH-based terminal chat between two PCs (TypeScript)",
+  "description": "Minimal SSH-based P2P terminal chat with sender/peer labels",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

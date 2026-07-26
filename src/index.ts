@@ -14,10 +14,12 @@ if (!fs.existsSync(HOST_KEY_PATH)) {
 
 const HOST_KEY = fs.readFileSync(HOST_KEY_PATH);
 
-let activeStream: ServerChannel | null = null;
+let activeChannel: ServerChannel | null = null;
+let peerLabel: string | null = null;
 
 function attachLineInput(
   stream: ServerChannel,
+  prompt: string,
   onLine: (line: string) => void,
 ) {
   let buffer = "";
@@ -30,6 +32,7 @@ function attachLineInput(
         const line = buffer;
         buffer = "";
         if (line.length > 0) onLine(line);
+        stream.write(prompt);
       } else if (byte === 127 || byte === 8) {
         // Backspace/Delete
         if (buffer.length > 0) {
@@ -49,44 +52,56 @@ function attachLineInput(
   });
 }
 
-const server = new Server({ hostKeys: [HOST_KEY] }, (client) => {
-  console.log("[+] Incoming connection...");
+const server = new Server({ hostKeys: [HOST_KEY] }, (client, info) => {
+  let username = "unknown";
 
   // NOTE: this accepts ANY auth attempt (password or none).
   // Fine for a quick personal two-PC chat on a trusted network.
   // Tighten this to check a specific public key before using it beyond that.
-  client.on("authentication", (ctx) => ctx.accept());
+  client.on("authentication", (ctx) => {
+    username = ctx.username;
+    ctx.accept();
+  });
 
   client.on("ready", () => {
-    console.log("[+] Peer authenticated.");
-
     client.on("session", (accept) => {
       const session = accept();
 
       session.on("pty", (accept) => accept());
 
       session.on("shell", (accept) => {
-        const stream = accept();
-        activeStream = stream;
+        const channel = accept();
 
-        stream.write("Connected. Start typing to chat.\r\n> ");
+        if (activeChannel) {
+          channel.write("A peer is already connected. Try again later.\r\n");
+          channel.end();
+          return;
+        }
 
-        attachLineInput(stream, (line) => {
-          process.stdout.write(`\rPeer: ${line}\nYou> `);
+        activeChannel = channel;
+        peerLabel = `${username}@${info.ip}`;
+        console.log(`\n[+] Peer connected: ${peerLabel}`);
+        process.stdout.write("You> ");
+
+        channel.write(`Connected to host. Start typing to chat.\r\nYou: `);
+
+        attachLineInput(channel, "You: ", (line) => {
+          process.stdout.write(`\r${peerLabel}: ${line}\nYou> `);
         });
 
-        stream.on("close", () => {
-          console.log("[-] Peer disconnected.");
-          activeStream = null;
+        channel.on("close", () => {
+          console.log(`\n[-] Peer disconnected: ${peerLabel}`);
+          process.stdout.write("You> ");
+          peerLabel = null;
+          activeChannel = null;
         });
       });
     });
   });
 
-  client.on("close", () => console.log("[-] Connection closed."));
-  client.on("error", (err: Error) =>
-    console.log("[!] Client error:", err.message),
-  );
+  client.on("error", () => {
+    /* swallow: a dropped peer connection shouldn't crash the host */
+  });
 });
 
 server.listen(PORT, "0.0.0.0", () => {
@@ -98,8 +113,8 @@ server.listen(PORT, "0.0.0.0", () => {
 // Host's own keyboard input -> sent to whoever is connected
 const rl = readline.createInterface({ input: process.stdin });
 rl.on("line", (line: string) => {
-  if (activeStream) {
-    activeStream.write(`${line}\r\n> `);
+  if (activeChannel) {
+    activeChannel.write(`Host: ${line}\r\nYou: `);
     process.stdout.write("You> ");
   } else {
     console.log("(no peer connected yet)");
