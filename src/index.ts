@@ -15,8 +15,15 @@ if (!fs.existsSync(HOST_KEY_PATH)) {
 const HOST_KEY = fs.readFileSync(HOST_KEY_PATH);
 
 let activeChannel: ServerChannel | null = null;
-let peerLabel: string | null = null;
+let peerName: string | null = null;
 
+/** Formats the current time as HH:MM, e.g. "14:32". */
+function timestamp(): string {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
 function attachLineInput(
   stream: ServerChannel,
   prompt: string,
@@ -79,20 +86,22 @@ const server = new Server({ hostKeys: [HOST_KEY] }, (client, info) => {
         }
 
         activeChannel = channel;
-        peerLabel = `${username}@${info.ip}`;
-        console.log(`\n[+] Peer connected: ${peerLabel}`);
+        peerName = username;
+        console.log(`\n[+] Peer connected: ${peerName}`);
         process.stdout.write("You> ");
 
         channel.write(`Connected to host. Start typing to chat.\r\nYou: `);
 
         attachLineInput(channel, "You: ", (line) => {
-          process.stdout.write(`\r${peerLabel}: ${line}\nYou> `);
+          process.stdout.write(
+            `\r[${timestamp()}] ${peerName}: ${line}\nYou> `,
+          );
         });
 
         channel.on("close", () => {
-          console.log(`\n[-] Peer disconnected: ${peerLabel}`);
+          console.log(`\n[-] Peer disconnected: ${peerName}`);
           process.stdout.write("You> ");
-          peerLabel = null;
+          peerName = null;
           activeChannel = null;
         });
       });
@@ -114,7 +123,10 @@ server.listen(PORT, "0.0.0.0", () => {
 const rl = readline.createInterface({ input: process.stdin });
 rl.on("line", (line: string) => {
   if (activeChannel) {
-    activeChannel.write(`Host: ${line}\r\nYou: `);
+    // \r moves to column 0, \x1b[K clears the rest of that line — this wipes
+    // out the peer's already-printed "You: " prompt before we write the
+    // incoming message, otherwise it renders as "You: Host: <message>".
+    activeChannel.write(`\r\x1b[K${`[${timestamp()}] Host: ` + line}\r\nYou: `);
     process.stdout.write("You> ");
   } else {
     console.log("(no peer connected yet)");
