@@ -37,9 +37,10 @@ async function queryOllama(prompt: string): Promise<string> {
     const tagsRes = await fetch("http://127.0.0.1:11434/api/tags");
     if (!tagsRes.ok) return "Ollama is unreachable.";
     const tagsData = (await tagsRes.json()) as any;
-    if (!tagsData.models || tagsData.models.length === 0) return "No models found in Ollama.";
-    
-    const model = tagsData.models[0].name;
+    if (!tagsData.models || tagsData.models.length === 0)
+      return "No models found in Ollama.";
+
+    const model = "gemma4:26";
 
     const response = await fetch("http://127.0.0.1:11434/api/generate", {
       method: "POST",
@@ -47,8 +48,8 @@ async function queryOllama(prompt: string): Promise<string> {
       body: JSON.stringify({
         model: model,
         prompt: prompt,
-        stream: false
-      })
+        stream: false,
+      }),
     });
     const data = (await response.json()) as any;
     return data.response.trim();
@@ -137,10 +138,10 @@ const server = new Server({ hostKeys: [HOST_KEY] }, (client, info) => {
 
           if (line.startsWith("/ollama ")) {
             const promptStr = line.slice(8);
-            
+
             const thinkingMsg = `\r\x1b[K[${timestamp()}] ${COLOR_OLLAMA}Ollama:${COLOR_RESET} thinking...\r\n${COLOR_YOU}You:${COLOR_RESET} `;
             channel.write(thinkingMsg);
-            
+
             queryOllama(promptStr).then((response) => {
               const responseMsg = `\r\x1b[K[${timestamp()}] ${COLOR_OLLAMA}Ollama:${COLOR_RESET} ${response.replace(/\n/g, "\r\n")}\r\n${COLOR_YOU}You:${COLOR_RESET} `;
               channel.write(responseMsg);
@@ -174,10 +175,14 @@ rl.on("line", (line: string) => {
   readline.moveCursor(process.stdout, 0, -1);
   readline.clearLine(process.stdout, 0);
   readline.cursorTo(process.stdout, 0);
-  process.stdout.write(`[${timestamp()}] ${COLOR_YOU}You:${COLOR_RESET} ${line}\n`);
+  process.stdout.write(
+    `[${timestamp()}] ${COLOR_YOU}You:${COLOR_RESET} ${line}\n`,
+  );
 
   if (activeChannel) {
-    activeChannel.write(`\r\x1b[K[${timestamp()}] ${COLOR_PEER}${hostName}:${COLOR_RESET} ${line}\r\n${COLOR_YOU}You:${COLOR_RESET} `);
+    activeChannel.write(
+      `\r\x1b[K[${timestamp()}] ${COLOR_PEER}${hostName}:${COLOR_RESET} ${line}\r\n${COLOR_YOU}You:${COLOR_RESET} `,
+    );
     process.stdout.write(`${COLOR_YOU}You>${COLOR_RESET} `);
   } else {
     console.log("(no peer connected yet)");
@@ -186,21 +191,23 @@ rl.on("line", (line: string) => {
 
   if (line.startsWith("/ollama ")) {
     const promptStr = line.slice(8);
-    
+
     const thinkingHost = `[${timestamp()}] ${COLOR_OLLAMA}Ollama:${COLOR_RESET} thinking...\n`;
     process.stdout.write(thinkingHost);
-    
+
     if (activeChannel) {
-      activeChannel.write(`\r\x1b[K[${timestamp()}] ${COLOR_OLLAMA}Ollama:${COLOR_RESET} thinking...\r\n${COLOR_YOU}You:${COLOR_RESET} `);
+      activeChannel.write(
+        `\r\x1b[K[${timestamp()}] ${COLOR_OLLAMA}Ollama:${COLOR_RESET} thinking...\r\n${COLOR_YOU}You:${COLOR_RESET} `,
+      );
     }
     process.stdout.write(`${COLOR_YOU}You>${COLOR_RESET} `);
-    
+
     queryOllama(promptStr).then((response) => {
       const responseHost = `[${timestamp()}] ${COLOR_OLLAMA}Ollama:${COLOR_RESET} ${response}\n`;
       readline.clearLine(process.stdout, 0);
       readline.cursorTo(process.stdout, 0);
       process.stdout.write(responseHost);
-      
+
       if (activeChannel) {
         const responsePeer = `\r\x1b[K[${timestamp()}] ${COLOR_OLLAMA}Ollama:${COLOR_RESET} ${response.replace(/\n/g, "\r\n")}\r\n${COLOR_YOU}You:${COLOR_RESET} `;
         activeChannel.write(responsePeer);
