@@ -34,10 +34,12 @@ function attachLineInput(
   stream.on("data", (data: Buffer) => {
     for (const byte of data) {
       if (byte === 13 || byte === 10) {
-        // Enter
-        stream.write("\r\n");
+        // Enter: the line just typed is currently showing as "You: <buffer>"
+        // via the character-echo above. Clear it and rewrite with a
+        // timestamp before moving to the next line.
         const line = buffer;
         buffer = "";
+        stream.write(`\r\x1b[K[${timestamp()}] You: ${line}\r\n`);
         if (line.length > 0) onLine(line);
         stream.write(prompt);
       } else if (byte === 127 || byte === 8) {
@@ -122,10 +124,12 @@ server.listen(PORT, "0.0.0.0", () => {
 // Host's own keyboard input -> sent to whoever is connected
 const rl = readline.createInterface({ input: process.stdin });
 rl.on("line", (line: string) => {
+  readline.moveCursor(process.stdout, 0, -1);
+  readline.clearLine(process.stdout, 0);
+  readline.cursorTo(process.stdout, 0);
+  process.stdout.write(`[${timestamp()}] You: ${line}\n`);
+
   if (activeChannel) {
-    // \r moves to column 0, \x1b[K clears the rest of that line — this wipes
-    // out the peer's already-printed "You: " prompt before we write the
-    // incoming message, otherwise it renders as "You: Host: <message>".
     activeChannel.write(`\r\x1b[K${`[${timestamp()}] Host: ` + line}\r\nYou: `);
     process.stdout.write("You> ");
   } else {
