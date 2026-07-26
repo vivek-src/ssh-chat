@@ -5,6 +5,12 @@ import * as readline from "readline";
 const PORT = 2222;
 const HOST_KEY_PATH = "./host_key";
 
+const hostName = process.argv[2] || "Host";
+
+const COLOR_YOU = "\x1b[32m"; // Green
+const COLOR_PEER = "\x1b[36m"; // Cyan
+const COLOR_RESET = "\x1b[0m";
+
 if (!fs.existsSync(HOST_KEY_PATH)) {
   console.error(
     `Missing host key. Generate one first with:\n\n  ssh-keygen -t ed25519 -f host_key -N ""\n`,
@@ -39,7 +45,7 @@ function attachLineInput(
         // timestamp before moving to the next line.
         const line = buffer;
         buffer = "";
-        stream.write(`\r\x1b[K[${timestamp()}] You: ${line}\r\n`);
+        stream.write(`\r\x1b[K[${timestamp()}] ${COLOR_YOU}You:${COLOR_RESET} ${line}\r\n`);
         if (line.length > 0) onLine(line);
         stream.write(prompt);
       } else if (byte === 127 || byte === 8) {
@@ -90,19 +96,19 @@ const server = new Server({ hostKeys: [HOST_KEY] }, (client, info) => {
         activeChannel = channel;
         peerName = username;
         console.log(`\n[+] Peer connected: ${peerName}`);
-        process.stdout.write("You> ");
+        process.stdout.write(`${COLOR_YOU}You>${COLOR_RESET} `);
 
-        channel.write(`Connected to host. Start typing to chat.\r\nYou: `);
+        channel.write(`Connected to ${hostName}. Start typing to chat.\r\n${COLOR_YOU}You:${COLOR_RESET} `);
 
-        attachLineInput(channel, "You: ", (line) => {
+        attachLineInput(channel, `${COLOR_YOU}You:${COLOR_RESET} `, (line) => {
           process.stdout.write(
-            `\r[${timestamp()}] ${peerName}: ${line}\nYou> `,
+            `\r[${timestamp()}] ${COLOR_PEER}${peerName}:${COLOR_RESET} ${line}\n${COLOR_YOU}You>${COLOR_RESET} `,
           );
         });
 
         channel.on("close", () => {
           console.log(`\n[-] Peer disconnected: ${peerName}`);
-          process.stdout.write("You> ");
+          process.stdout.write(`${COLOR_YOU}You>${COLOR_RESET} `);
           peerName = null;
           activeChannel = null;
         });
@@ -118,7 +124,7 @@ const server = new Server({ hostKeys: [HOST_KEY] }, (client, info) => {
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`SSH chat server listening on port ${PORT}`);
   console.log(`Peer connects with: ssh -p ${PORT} anyname@<this-PC-IP>\n`);
-  process.stdout.write("You> ");
+  process.stdout.write(`${COLOR_YOU}You>${COLOR_RESET} `);
 });
 
 // Host's own keyboard input -> sent to whoever is connected
@@ -127,13 +133,13 @@ rl.on("line", (line: string) => {
   readline.moveCursor(process.stdout, 0, -1);
   readline.clearLine(process.stdout, 0);
   readline.cursorTo(process.stdout, 0);
-  process.stdout.write(`[${timestamp()}] You: ${line}\n`);
+  process.stdout.write(`[${timestamp()}] ${COLOR_YOU}You:${COLOR_RESET} ${line}\n`);
 
   if (activeChannel) {
-    activeChannel.write(`\r\x1b[K${`[${timestamp()}] Host: ` + line}\r\nYou: `);
-    process.stdout.write("You> ");
+    activeChannel.write(`\r\x1b[K[${timestamp()}] ${COLOR_PEER}${hostName}:${COLOR_RESET} ${line}\r\n${COLOR_YOU}You:${COLOR_RESET} `);
+    process.stdout.write(`${COLOR_YOU}You>${COLOR_RESET} `);
   } else {
     console.log("(no peer connected yet)");
-    process.stdout.write("You> ");
+    process.stdout.write(`${COLOR_YOU}You>${COLOR_RESET} `);
   }
 });
